@@ -25,6 +25,8 @@ const lightboxConfig = {
   close: true,
 };
 
+let currentQueryTotalHits;
+
 const photoApi = new PixabayApiService(queryParams);
 let gallery = new SimpleLightbox('.gallery div', lightboxConfig)
 
@@ -32,7 +34,7 @@ let gallery = new SimpleLightbox('.gallery div', lightboxConfig)
 refs.input.addEventListener('submit', onFormSubmit);
 refs.gallery.addEventListener('click', onPhotoClick);
 
-window.addEventListener('scroll', _.throttle(checkPosition, 300));
+window.addEventListener('scroll', _.throttle(onScroll, 300));
 
 
 async function onFormSubmit(evt) {
@@ -51,24 +53,19 @@ async function onFormSubmit(evt) {
   fetchAndRenderPhotos();
 }
 
-async function loadMore() {
-  await fetchAndRenderPhotos();
-  scroll();
+async function onScroll() {
+  if(checkPosition() && refs.gallery.children.length < currentQueryTotalHits) {
+    await fetchAndRenderPhotos();
+    scroll();
+  }
 }
 
 async function fetchAndRenderPhotos() {
-  const photos = await photoApi.getPhotos();
+  const data = await photoApi.getPhotos();
+  
+  currentQueryTotalHits = data.totalHits;
 
-  console.log(photos)
-
-  if (!photos.length) {
-    Notiflix.Notify.failure(
-      "Sorry, there are no images matching your search query. Please try again."
-    );
-    return;
-  }
-
-  const markup = photos.map(item => createCardMarkup(item)).join('');
+  const markup = data.hits.map(item => createCardMarkup(item)).join('');
 
   refs.gallery.insertAdjacentHTML('beforeend', markup);
 
@@ -79,16 +76,14 @@ function clearGallery() {
   refs.gallery.innerHTML = '';
 }
 
-async function checkPosition() {
+function checkPosition() {
   const height = document.body.offsetHeight;
   const screenHeight = window.innerHeight;
 
   const threshold = height - screenHeight / 6;
   const position = window.scrollY + screenHeight;
 
-  if (position >= threshold) {
-    loadMore();
-  }
+  return position >= threshold;
 }
 
 function onPhotoClick(evt) {

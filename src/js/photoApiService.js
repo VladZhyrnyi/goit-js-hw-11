@@ -8,7 +8,6 @@ import Notiflix from 'notiflix';
 export default class PixabayApiService {
   constructor(searchParams) {
     this.config = { params: { key: API_KEY, q: '', ...searchParams, page: 1 } };
-    this.page = 1;
   }
 
   async getPhotos() {
@@ -17,11 +16,18 @@ export default class PixabayApiService {
 
       if (response.status === 200) {
 
+        if (!response.data.hits.length) {
+          Notiflix.Notify.failure(
+            'Sorry, there are no images matching your search query. Please try again.'
+          );
+          return;
+        }
+
         if(this.config.params.page === 1) {
           Notiflix.Notify.info(`Hooray! We found ${response.data.totalHits} images.`);
         }
         this.incrementPage();
-        return response.data.hits;
+        return response.data;
       }
     } catch (error) {
       console.log(error);
